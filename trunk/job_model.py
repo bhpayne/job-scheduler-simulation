@@ -396,40 +396,63 @@ save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_w
 # figure; plot(datfil(:,1),datfil(:,2));
 
 plt.figure(1)
+plt.title('node utilization as function of time')
 plt.xlabel('time [AU]')
 plt.ylabel('nodes in use (%)')
 # plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='--')  
 plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='None')  
+plt.savefig("jobschedulersim_fig1_node_utilization_vs_time.png")
 plt.show()
+#plt.close()
 
 plt.figure(2)
+plt.title('node utilization histogram')
 plt.xlabel('nodes in use (%)')
 plt.ylabel('normalized count')
 plt.hist(node_tracking,bins=20, normed=True)
 #plt.hist(node_tracking, bins=20, normed=True, cumulative=True)
+plt.savefig("jobschedulersim_fig2_node_utilization_histogram.png")
 plt.show()
+#plt.close()
 
 plt.figure(3)
+plt.title('power utilization as function of time')
 plt.xlabel('time [AU]')
 plt.ylabel('power in use (%)')
 plt.plot(range(len(power_tracking)),power_tracking,marker='o',markersize=4,linestyle='None')  
+plt.savefig("jobschedulersim_fig3_power_utilization_vs_time.png")
 plt.show()
+#plt.close()
 
 plt.figure(4)
+plt.title('power utilization histogram')
 plt.xlabel('power in use (%)')
 plt.ylabel('normalized count')
 plt.hist(power_tracking,bins=20, normed=True)
+plt.savefig("jobschedulersim_fig4_power_utilization_histogram.png")
 plt.show()
+#plt.close()
 
 power_for_jobs=[]
+nodes_for_jobs=[]
 for job_indx in range(len(jobs_which_ran)):
+  nodes_for_jobs.append(jobs_which_ran[job_indx][1])
   power_for_jobs.append(jobs_which_ran[job_indx][3])
+
 plt.figure(5)
+plt.title('power requests for all jobs that ran')
 plt.xlabel('power requests (%)')
 plt.ylabel('normalized count')
 plt.hist(power_for_jobs,bins=20, normed=True)
+plt.savefig("jobschedulersim_fig5_power_requests.png")
 plt.show()
+#plt.close()
 
-
-#plt.savefig("networkx_"+metric_name_file+"_versus_iterations.png")
+plt.figure(6)
+plt.title('node requests for all jobs that ran')
+plt.xlabel('node count requests (%)')
+plt.ylabel('normalized count')
+plt.hist(nodes_for_jobs,bins=20, normed=True)
+plt.savefig("jobschedulersim_fig6_node_requests.png")
+plt.show()
 #plt.close()
