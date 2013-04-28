@@ -76,6 +76,7 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
   concurrency_tracking=[]
 
   jobs_running=[]
+  jobs_which_ran=[]
 
   time_step=0
   print("\ntime="+str(time_step))
@@ -99,6 +100,8 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
         nodes_in_use=nodes_in_use+nodes_for_this_job
         nodes_available=total_number_of_nodes-nodes_in_use
         jobs_running.append(job_pool[job_indx])
+        this_job_and_when_it_started=job_pool[job_indx].append(time_step)
+        jobs_which_ran.append(this_job_and_when_it_started)
 #     print("after adding jobs,")
 #     for running_job_indx in range(len(jobs_running)):
 #       print("running job: "+str(jobs_running[running_job_indx]))  
@@ -114,44 +117,10 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
 #       print("job in pool: "+str(job_pool[pool_job_indx]))
   
     # for each of the running jobs, decrement the time by 1
-#     print("looking for jobs that finished")
-    jobs_continuing=[]
-    for running_job_indx in range(len(jobs_running)):
-      jobs_running[running_job_indx][2]=jobs_running[running_job_indx][2]-1
-      if (jobs_running[running_job_indx][2]>0):
-        jobs_continuing.append(jobs_running[running_job_indx])
-      else:
-        print("FINISHED job "+str(jobs_running[running_job_indx]))
-        number_of_jobs_completed=number_of_jobs_completed+1
-        job_ID_increment=job_ID_increment+1
-        if (number_of_jobs_completed<number_of_jobs_to_run):
-          add_jobs_to_pool(1,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,job_ID_increment)
-
-    jobs_running=[]
-    jobs_running=jobs_continuing    
-
+    [jobs_running,number_of_jobs_completed,job_ID_increment] = decrement_time_for_running_jobs(jobs_running,number_of_jobs_completed,number_of_jobs_to_run,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,job_ID_increment)
+    
 #    print("after job finished")  
-    node_tracking_at_this_time=0
-    power_tracking_at_this_time=0
-    concurrency_tracking.append(len(jobs_running))
-    for running_job_indx in range(len(jobs_running)):
-#      print("  running job: "+str(jobs_running[running_job_indx]))  
-      node_tracking_at_this_time =node_tracking_at_this_time +jobs_running[running_job_indx][1]
-      power_tracking_at_this_time=power_tracking_at_this_time+jobs_running[running_job_indx][3]*jobs_running[running_job_indx][1]
-#      print("nodes: "+str(jobs_running[running_job_indx][1]))
-
-#    print("nodes used: "+str(node_tracking_at_this_time))
-#    print("total nodes:"+str(total_number_of_nodes))
-    nodes_used_percentage = (node_tracking_at_this_time/(total_number_of_nodes*1.0))*100
-#    print("percent: "+str(nodes_used_percentage))
-    if (nodes_used_percentage>100):
-      print("ERROR in nodes used percentage: "+str(nodes_used_percentage))
-    node_tracking.append(nodes_used_percentage)
-
-    power_used_percentage = (power_tracking_at_this_time/total_number_of_nodes)*100
-    if (power_used_percentage>100):
-      print("ERROR in power used percentage: "+str(nodes_used_percentage))
-    power_tracking.append(power_used_percentage)
+    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes)
 
 #    for pool_job_indx in range(len(job_pool)):
 #      print("  job in pool: "+str(job_pool[pool_job_indx]))
@@ -165,7 +134,7 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
     
     print("running: "+str(len(jobs_running))+" in pool: "+str(len(job_pool))+" ran: "+str(number_of_jobs_completed))
 
-  return node_tracking, power_tracking, concurrency_tracking
+  return node_tracking, power_tracking, concurrency_tracking, jobs_which_ran
 
 
 #*****************************
@@ -183,6 +152,7 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
   concurrency_tracking=[]
 
   jobs_running=[]
+  jobs_which_ran=[]  
 
   time_step=0
   print("\ntime="+str(time_step))
@@ -207,7 +177,7 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
       job_id              =job_pool[job_indx][0]
       nodes_for_this_job  =job_pool[job_indx][1]
      #this_job_wall_time  =job_pool[job_indx][2]
-      this_job_power_usage=job_pool[job_indx][3]*(nodes_for_this_job/total_number_of_nodes)
+      this_job_power_usage=job_pool[job_indx][3]*nodes_for_this_job
       job_is_running=False
       if ((nodes_for_this_job<=nodes_available) and (this_job_power_usage<=power_available) and not job_is_running ): # then run the job
         nodes_in_use=nodes_in_use+nodes_for_this_job
@@ -215,6 +185,9 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
         power_in_use=power_in_use+this_job_power_usage
         power_available=total_power-power_in_use
         jobs_running.append(job_pool[job_indx])
+        
+        jobs_which_ran.append(job_pool[job_indx])
+
 #     print("after adding jobs,")
 #     for running_job_indx in range(len(jobs_running)):
 #       print("running job: "+str(jobs_running[running_job_indx]))  
@@ -230,44 +203,14 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
 #       print("job in pool: "+str(job_pool[pool_job_indx]))
   
     # for each of the running jobs, decrement the time by 1
-#     print("looking for jobs that finished")
-    jobs_continuing=[]
-    for running_job_indx in range(len(jobs_running)):
-      jobs_running[running_job_indx][2]=jobs_running[running_job_indx][2]-1
-      if (jobs_running[running_job_indx][2]>0):
-        jobs_continuing.append(jobs_running[running_job_indx])
-      else:
-        print("FINISHED job "+str(jobs_running[running_job_indx]))
-        number_of_jobs_completed=number_of_jobs_completed+1
-        job_ID_increment=job_ID_increment+1
-        if (number_of_jobs_completed<number_of_jobs_to_run):
-          add_jobs_to_pool(1,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,job_ID_increment)
+    [jobs_running,number_of_jobs_completed,job_ID_increment] = decrement_time_for_running_jobs(jobs_running,
+                                             number_of_jobs_completed,number_of_jobs_to_run,nodes_per_job_mean,
+                                             nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,
+                                             wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,
+                                             power_usage_minimum,job_pool,job_ID_increment)
 
-    jobs_running=[]
-    jobs_running=jobs_continuing    
-
-#    print("after job finished")  
-    node_tracking_at_this_time=0
-    power_tracking_at_this_time=0
-    concurrency_tracking.append(len(jobs_running))
-    for running_job_indx in range(len(jobs_running)):
-#      print("  running job: "+str(jobs_running[running_job_indx]))  
-      node_tracking_at_this_time =node_tracking_at_this_time +jobs_running[running_job_indx][1]
-      power_tracking_at_this_time=power_tracking_at_this_time+jobs_running[running_job_indx][3]*jobs_running[running_job_indx][1]
-#      print("nodes: "+str(jobs_running[running_job_indx][1]))
-
-#    print("nodes used: "+str(node_tracking_at_this_time))
-#    print("total nodes:"+str(total_number_of_nodes))
-    nodes_used_percentage = (node_tracking_at_this_time/(total_number_of_nodes*1.0))*100
-#    print("percent: "+str(nodes_used_percentage))
-    if (nodes_used_percentage>100):
-      print("ERROR in nodes used percentage: "+str(nodes_used_percentage))
-    node_tracking.append(nodes_used_percentage)
-
-    power_used_percentage = (power_tracking_at_this_time/total_number_of_nodes)*100
-    if (power_used_percentage>100):
-      print("ERROR in power used percentage: "+str(nodes_used_percentage))
-    power_tracking.append(power_used_percentage)
+ #    print("after job finished")  
+    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes)
 
 #    for pool_job_indx in range(len(job_pool)):
 #      print("  job in pool: "+str(job_pool[pool_job_indx]))
@@ -284,15 +227,134 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
     
     print("running: "+str(len(jobs_running))+" in pool: "+str(len(job_pool))+" ran: "+str(number_of_jobs_completed))
 
-  return node_tracking, power_tracking, concurrency_tracking
+  return node_tracking, power_tracking, concurrency_tracking, jobs_which_ran
 
+#*****************************
+# "power available" scheduling simulation. Process a finite set of jobs from the job pool
+# not "fair" and not "FIFO"
+def scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes):
+  power_in_use=0 # initially the cluster is in the off state
+  total_power = total_number_of_nodes # since power per node is normalized to 1
+  number_of_jobs_completed=0
+  job_ID_increment=number_of_jobs_to_add_to_pool
 
-def save_results_to_file(node_tracking, power_tracking, concurrency_tracking):
+  node_tracking=[]
+  power_tracking=[]
+  concurrency_tracking=[]
+
+  jobs_running=[]
+  jobs_which_ran=[]  
+
+  time_step=0
+  print("\ntime="+str(time_step))
+  while(number_of_jobs_completed<=number_of_jobs_to_run): 
+    # how much power is available at this time?
+    power_available=total_power-power_in_use
+    if (power_available>total_power):
+      print("ERROR with power: "+str(power_available))
+      exit()
+    print("power available: "+str(power_available)+"; power in use: "+str(power_in_use))
+
+    # given that much power at this time, add jobs from the pool
+    number_of_available_jobs=len(job_pool)
+    for job_indx in range(number_of_available_jobs): # find jobs in the pool to fit into the cluster
+      job_id              =job_pool[job_indx][0]
+      nodes_for_this_job  =job_pool[job_indx][1]
+     #this_job_wall_time  =job_pool[job_indx][2]
+      this_job_power_usage=job_pool[job_indx][3]*(nodes_for_this_job)
+      job_is_running=False
+      if ((this_job_power_usage<=power_available) and not job_is_running ): # then run the job
+        power_in_use=power_in_use+this_job_power_usage
+#         print("job: "+str(job_pool[job_indx]))
+#         print("power in use: "+str(power_in_use))
+        power_available=total_power-power_in_use
+#         print("power available: "+str(power_available))
+        jobs_running.append(job_pool[job_indx])
+        this_job_and_when_it_started=job_pool[job_indx].append(time_step)
+        jobs_which_ran.append(this_job_and_when_it_started)
+
+    # now that we have a set of running jobs, remove those from the list of jobs to be run    
+    for running_job_indx in range(len(jobs_running)):
+      print("  running job = "+str(jobs_running[running_job_indx]))
+      try: job_pool.remove(jobs_running[running_job_indx])
+      except ValueError: pass # this job had already been removed from the job pool
+  
+    # for each of the running jobs, decrement the time by 1
+    [jobs_running,number_of_jobs_completed,job_ID_increment] = decrement_time_for_running_jobs(jobs_running,
+                                             number_of_jobs_completed,number_of_jobs_to_run,nodes_per_job_mean,
+                                             nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,
+                                             wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,
+                                             power_usage_minimum,job_pool,job_ID_increment)
+
+ #    print("after job finished")  
+    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes)
+
+    # update the number of nodes in use
+    power_in_use=0
+    for running_job_indx in range(len(jobs_running)):
+      power_in_use=power_in_use+jobs_running[running_job_indx][3]*(nodes_for_this_job/total_number_of_nodes)
+    
+    time_step=time_step+1  
+    print("\ntime="+str(time_step))  
+    
+    print("running: "+str(len(jobs_running))+" in pool: "+str(len(job_pool))+" ran: "+str(number_of_jobs_completed))
+
+  return node_tracking, power_tracking, concurrency_tracking, jobs_which_ran
+
+#*****************************
+# used by all schedulers
+def decrement_time_for_running_jobs(jobs_running,number_of_jobs_completed,
+                                    number_of_jobs_to_run,nodes_per_job_mean,nodes_per_job_stddev,
+                                    total_number_of_nodes,wall_time_mean,wall_time_stddev,
+                                    max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,
+                                    job_pool,job_ID_increment):
+# print("looking for jobs that finished")
+  jobs_continuing=[]
+  for running_job_indx in range(len(jobs_running)):
+    jobs_running[running_job_indx][2]=jobs_running[running_job_indx][2]-1
+    if (jobs_running[running_job_indx][2]>0):
+      jobs_continuing.append(jobs_running[running_job_indx])
+    else:
+      print("FINISHED job "+str(jobs_running[running_job_indx]))
+      number_of_jobs_completed=number_of_jobs_completed+1
+      job_ID_increment=job_ID_increment+1
+      if (number_of_jobs_completed<number_of_jobs_to_run): # for each finished job, add another job to the pool
+        add_jobs_to_pool(1,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,job_ID_increment)
+  jobs_running=[]
+  jobs_running=jobs_continuing    
+  return jobs_running,number_of_jobs_completed,job_ID_increment
+
+#*****************************
+# used by all schedulers
+def record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes):
+  node_tracking_at_this_time=0
+  power_tracking_at_this_time=0
+  concurrency_tracking.append(len(jobs_running))
+  for running_job_indx in range(len(jobs_running)):
+    node_tracking_at_this_time =node_tracking_at_this_time +jobs_running[running_job_indx][1]
+    power_tracking_at_this_time=power_tracking_at_this_time+jobs_running[running_job_indx][3]*jobs_running[running_job_indx][1]
+
+  nodes_used_percentage = (node_tracking_at_this_time/(total_number_of_nodes*1.0))*100
+  if (nodes_used_percentage>100):
+    print("ERROR in nodes used percentage: "+str(nodes_used_percentage))
+    exit()
+  node_tracking.append(nodes_used_percentage)
+
+  power_used_percentage = (power_tracking_at_this_time/total_number_of_nodes)*100
+  if (power_used_percentage>100):
+    print("ERROR in power used percentage: "+str(nodes_used_percentage))
+    exit()
+  power_tracking.append(power_used_percentage)
+
+  return node_tracking,power_tracking,concurrency_tracking
+
+#*****************************
+def save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_which_ran):
   f = open('schedule_nodes_power_used.dat','w')
   for lin in range(len(node_tracking)):
     f.write(str(lin)+"  "+str(node_tracking[lin])+"  "+str(lin)+"  "+str(power_tracking[lin])+"  "+str(lin)+"  "+str(concurrency_tracking[lin])+"\n")
   f.close()  
-
+  print("jobs which ran: \n"+str(jobs_which_ran))
 # done with function definitions
 #*****************************
 # parameter definitions
@@ -322,11 +384,15 @@ job_pool=[]
 add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,start_job_ID)
 
 # what's fascinating is that although the cluster runs at 100% node usage, the power usage rarely exceeds 90%. Thus this simple model captures the essential features!
-[node_tracking, power_tracking, concurrency_tracking] = scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes)
+#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes)
 # or 
-#[node_tracking, power_tracking, concurrency_tracking] = scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes)
+# as long as power per node for a given job is less than 1, "nodes and power" will be same as "nodes" alone.
+[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes)
+# or 
+# by power alone fails because nodes are oversubscribed.
+#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes)
 
-save_results_to_file(node_tracking, power_tracking, concurrency_tracking)
+save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_which_ran)
 
 # we care about the histogram of power usage, trimming the first and last parts to remove bias
 
