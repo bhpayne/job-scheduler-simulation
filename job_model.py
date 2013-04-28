@@ -366,7 +366,7 @@ wall_time_mean=50 # hours
 wall_time_stddev=20
 # power [3]
 power_usage_mean=0.6666 # normalized to node power
-power_usage_stddev=0.2
+power_usage_stddev=0.1
 power_usage_minimum=0.4 # includes idle power state. Max=1
 
 # done with parameter setting
