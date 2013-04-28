@@ -21,14 +21,8 @@
 
 import random
 import math
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-#plt.xlabel('iteration')
-#plt.ylabel('ben')
-#plt.plot(range(number_of_jobs),job_time,marker='o',markersize=4,linestyle='--')  
-#plt.show()
-#plt.savefig("networkx_"+metric_name_file+"_versus_iterations.png")
-#plt.close()
 
 #*****************************
 def add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,start_job_ID):
@@ -354,7 +348,8 @@ def save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jo
   for lin in range(len(node_tracking)):
     f.write(str(lin)+"  "+str(node_tracking[lin])+"  "+str(lin)+"  "+str(power_tracking[lin])+"  "+str(lin)+"  "+str(concurrency_tracking[lin])+"\n")
   f.close()  
-  print("jobs which ran: \n"+str(jobs_which_ran))
+#   print("jobs which ran: \n"+str(jobs_which_ran))
+
 # done with function definitions
 #*****************************
 # parameter definitions
@@ -396,6 +391,45 @@ save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_w
 
 # we care about the histogram of power usage, trimming the first and last parts to remove bias
 
-# Following is for Octave:
+# in Octave:
 # datfil=load("schedule_nodes_power_used.dat");
 # figure; plot(datfil(:,1),datfil(:,2));
+
+plt.figure(1)
+plt.xlabel('time [AU]')
+plt.ylabel('nodes in use (%)')
+# plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='--')  
+plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='None')  
+plt.show()
+
+plt.figure(2)
+plt.xlabel('nodes in use (%)')
+plt.ylabel('normalized count')
+plt.hist(node_tracking,bins=20, normed=True)
+#plt.hist(node_tracking, bins=20, normed=True, cumulative=True)
+plt.show()
+
+plt.figure(3)
+plt.xlabel('time [AU]')
+plt.ylabel('power in use (%)')
+plt.plot(range(len(power_tracking)),power_tracking,marker='o',markersize=4,linestyle='None')  
+plt.show()
+
+plt.figure(4)
+plt.xlabel('power in use (%)')
+plt.ylabel('normalized count')
+plt.hist(power_tracking,bins=20, normed=True)
+plt.show()
+
+power_for_jobs=[]
+for job_indx in range(len(jobs_which_ran)):
+  power_for_jobs.append(jobs_which_ran[job_indx][3])
+plt.figure(5)
+plt.xlabel('power requests (%)')
+plt.ylabel('normalized count')
+plt.hist(power_for_jobs,bins=20, normed=True)
+plt.show()
+
+
+#plt.savefig("networkx_"+metric_name_file+"_versus_iterations.png")
+#plt.close()
