@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Ben Payne
 # last updated 20130501
 # created 20130426
@@ -31,10 +32,11 @@
 # caveat: it's easy to get unrealistic results by altering the input distribution features. 
 # Therefore realistic input distributions are vital to making useful predictions.
 
-import random
-import math
+# package dependencies
+import random # used for distributions
+#import math 
 import matplotlib.pyplot as plt
-
+import yaml
 
 #*****************************
 def add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,start_job_ID):
@@ -436,21 +438,27 @@ def make_plots(node_tracking,power_tracking):
 #*****************************
 # parameter definitions
 
-number_of_jobs_to_run=500
-number_of_jobs_to_add_to_pool=100 # steady-state level
-power_cap=0.85 # this is the cap for the total cluster in percentage of potential capacity.
+input_stream=file('parameters.input','r')
+input_data=yaml.load(input_stream)
+
+number_of_jobs_to_run=input_data["number_of_jobs_to_run"]
+number_of_jobs_to_add_to_pool=input_data["number_of_jobs_to_add_to_pool"]
+power_cap=input_data["power_cap"]
 # node count [1]
-total_number_of_nodes=1000
-nodes_per_job_mean=300 # integer
-nodes_per_job_stddev=100
+total_number_of_nodes=input_data["total_number_of_nodes"]
+nodes_per_job_mean=input_data["nodes_per_job_mean"]
+nodes_per_job_stddev=input_data["nodes_per_job_stddev"]
 # time [2]
-max_job_time=100
-wall_time_mean=50 # hours
-wall_time_stddev=20
+max_job_time=input_data["max_job_time"]
+wall_time_mean=input_data["wall_time_mean"]
+wall_time_stddev=input_data["wall_time_stddev"]
 # power [3]
-power_usage_mean=0.6666 # normalized to node power
-power_usage_stddev=0.1
-power_usage_minimum=0.4 # includes idle power state. Max=1
+power_usage_mean=input_data["power_usage_mean"]
+power_usage_stddev=input_data["power_usage_stddev"]
+power_usage_minimum=input_data["power_usage_minimum"]
+
+input_stream.close() # done reading parameters input
+
 
 # done with parameter setting
 #*****************************
