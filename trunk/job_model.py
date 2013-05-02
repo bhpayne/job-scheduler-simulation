@@ -1,15 +1,27 @@
 # Ben Payne
-# 20130426
+# last updated 20130501
+# created 20130426
 # job scheduling model
 # accounts for job time, node count, and power usage
 
+# Description:
+# There are two main arrays, "job_pool" and "jobs_running"
+# Initially job_pool is populated with a list of jobs. Each job has four parameters: unique job ID, number of nodes, time to run, and power per node.
+# The distributions for each of these parameters are determined by the user. The user also sets how many total jobs to run through the cluster, total number of nodes in the cluster, and a power cap.
+# Time is then incremented from 0. At each time step, the scheduler determines whether there are nodes (and possibly power) available. If there is, move a job from the job_pool to jobs_running.
+# At each time step, the jobs in jobs_running have their time decremented by 1. If the time reaches zero, the job is removed from jobs_running
+# The output of the simulation is the number of nodes in use and total power in use at each time step. From these records the histogram of node and power usage can be created.
+# The schedulers used are not "fair" and do not account for node locality. 
+
 # Assumptions: 
 # -homogeneous cluster = all nodes are interchangeable for run time and power usage. (Unrealistic.)
-# -locality doesn't matter.  (Not the case in reality.)
-# -topology is irrelevant to job run time. (Not the case in reality.)
+# -locality doesn't matter. (Unrealistic.)
+# -topology is irrelevant to job run time. (Unrealistic.)
 # -no node fails. Either the entire cluster is available or not. (Restarting the cluster can be modeled.) (Unrealistic.)
-# -job power is uniform across all nodes. (Not the case in reality.)
-# -power node is normalized to 1
+# -job power is uniform across all nodes. (Unrealistic.)
+# -power per node is normalized to 1
+# -time is normalized to 1
+# -there are no "background" jobs available -- a job which will consume otherwise idle nodes when none of the jobs in the pool queue fit free nodes. See note in record_node_and_power_use()
 
 # caveat: there are transient effects associated with t=0 (since all nodes are empty at that time). 
 # To avoid transients, either ignore the statistics associated with small t (small compared to a*(mean job time)) or run for a long time (aka many jobs)
@@ -60,7 +72,7 @@ def add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_
 #*****************************
 # "nodes available" scheduling simulation. Process a finite set of jobs from the job pool
 # not "fair" and not "FIFO"
-def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes):
+def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap):
   nodes_in_use=0 # initially the cluster is empty
   number_of_jobs_completed=0
   job_ID_increment=number_of_jobs_to_add_to_pool
@@ -114,7 +126,7 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
     [jobs_running,number_of_jobs_completed,job_ID_increment] = decrement_time_for_running_jobs(jobs_running,number_of_jobs_completed,number_of_jobs_to_run,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,job_ID_increment)
     
 #    print("after job finished")  
-    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes)
+    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes,power_usage_minimum)
 
 #    for pool_job_indx in range(len(job_pool)):
 #      print("  job in pool: "+str(job_pool[pool_job_indx]))
@@ -134,7 +146,7 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
 #*****************************
 # "nodes and power available" scheduling simulation. Process a finite set of jobs from the job pool
 # not "fair" and not "FIFO"
-def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes):
+def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap):
   nodes_in_use=0 # initially the cluster is empty
   power_in_use=0 # initially the cluster is in the off state
   total_power = total_number_of_nodes # since power per node is normalized to 1
@@ -173,7 +185,7 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
      #this_job_wall_time  =job_pool[job_indx][2]
       this_job_power_usage=job_pool[job_indx][3]*nodes_for_this_job
       job_is_running=False
-      if ((nodes_for_this_job<=nodes_available) and (this_job_power_usage<=power_available) and not job_is_running ): # then run the job
+      if ((nodes_for_this_job<=nodes_available) and (this_job_power_usage<=(power_available*power_cap)) and not job_is_running ): # then run the job
         nodes_in_use=nodes_in_use+nodes_for_this_job
         nodes_available=total_number_of_nodes-nodes_in_use
         power_in_use=power_in_use+this_job_power_usage
@@ -204,7 +216,7 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
                                              power_usage_minimum,job_pool,job_ID_increment)
 
  #    print("after job finished")  
-    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes)
+    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes,power_usage_minimum)
 
 #    for pool_job_indx in range(len(job_pool)):
 #      print("  job in pool: "+str(job_pool[pool_job_indx]))
@@ -226,7 +238,7 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
 #*****************************
 # "power available" scheduling simulation. Process a finite set of jobs from the job pool
 # not "fair" and not "FIFO"
-def scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes):
+def scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap):
   power_in_use=0 # initially the cluster is in the off state
   total_power = total_number_of_nodes # since power per node is normalized to 1
   number_of_jobs_completed=0
@@ -257,7 +269,7 @@ def scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
      #this_job_wall_time  =job_pool[job_indx][2]
       this_job_power_usage=job_pool[job_indx][3]*(nodes_for_this_job)
       job_is_running=False
-      if ((this_job_power_usage<=power_available) and not job_is_running ): # then run the job
+      if ((this_job_power_usage<=(power_available*power_cap)) and not job_is_running ): # then run the job
         power_in_use=power_in_use+this_job_power_usage
 #         print("job: "+str(job_pool[job_indx]))
 #         print("power in use: "+str(power_in_use))
@@ -281,7 +293,7 @@ def scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
                                              power_usage_minimum,job_pool,job_ID_increment)
 
  #    print("after job finished")  
-    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes)
+    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes,power_usage_minimum)
 
     # update the number of nodes in use
     power_in_use=0
@@ -320,13 +332,18 @@ def decrement_time_for_running_jobs(jobs_running,number_of_jobs_completed,
 
 #*****************************
 # used by all schedulers
-def record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes):
+def record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes,power_usage_minimum):
   node_tracking_at_this_time=0
   power_tracking_at_this_time=0
   concurrency_tracking.append(len(jobs_running))
   for running_job_indx in range(len(jobs_running)):
     node_tracking_at_this_time =node_tracking_at_this_time +jobs_running[running_job_indx][1]
     power_tracking_at_this_time=power_tracking_at_this_time+jobs_running[running_job_indx][3]*jobs_running[running_job_indx][1]
+  # in addition to the power being used by nodes running jobs, the idle nodes also consume power. 
+  nodes_idle = total_number_of_nodes-node_tracking_at_this_time # How many of the nodes are idle?
+  # Note: if, instead of idle nodes, there should be a "background" type job which runs, then replace "power_usage_minimum" with the power used by the background job.
+  power_idle = nodes_idle*power_usage_minimum # total power being spent on idle nodes
+  power_tracking_at_this_time = power_tracking_at_this_time+power_idle # add the "idle powered nodes" to the total power
 
   nodes_used_percentage = (node_tracking_at_this_time/(total_number_of_nodes*1.0))*100
   if (nodes_used_percentage>100):
@@ -350,12 +367,78 @@ def save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jo
   f.close()  
 #   print("jobs which ran: \n"+str(jobs_which_ran))
 
+#*****************************
+def make_plots(node_tracking,power_tracking):
+  plt.figure(1)
+  plt.title('node utilization as function of time')
+  plt.xlabel('time [AU]')
+  plt.ylabel('nodes in use (%)')
+  # plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='--')  
+  plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='None')  
+  plt.savefig("jobschedulersim_fig1_node_utilization_vs_time.png")
+  plt.show()
+  #plt.close()
+
+  plt.figure(2)
+  plt.title('node utilization histogram')
+  plt.xlabel('nodes in use (%)')
+  plt.ylabel('normalized count')
+  plt.hist(node_tracking,bins=20, normed=True)
+  #plt.hist(node_tracking, bins=20, normed=True, cumulative=True)
+  plt.savefig("jobschedulersim_fig2_node_utilization_histogram.png")
+  plt.show()
+  #plt.close()
+
+  plt.figure(3)
+  plt.title('power utilization as function of time')
+  plt.xlabel('time [AU]')
+  plt.ylabel('power in use (%)')
+  plt.plot(range(len(power_tracking)),power_tracking,marker='o',markersize=4,linestyle='None')  
+  plt.savefig("jobschedulersim_fig3_power_utilization_vs_time.png")
+  plt.show()
+  #plt.close()
+
+  plt.figure(4)
+  plt.title('power utilization histogram')
+  plt.xlabel('power in use (%)')
+  plt.ylabel('normalized count')
+  plt.hist(power_tracking,bins=20, normed=True)
+  plt.savefig("jobschedulersim_fig4_power_utilization_histogram.png")
+  plt.show()
+  #plt.close()
+
+  power_for_jobs=[]
+  nodes_for_jobs=[]
+  for job_indx in range(len(jobs_which_ran)):
+    nodes_for_jobs.append(jobs_which_ran[job_indx][1])
+    power_for_jobs.append(jobs_which_ran[job_indx][3])
+
+  plt.figure(5)
+  plt.title('power requests for all jobs that ran')
+  plt.xlabel('power requests (%)')
+  plt.ylabel('normalized count')
+  plt.hist(power_for_jobs,bins=20, normed=True)
+  plt.savefig("jobschedulersim_fig5_power_requests.png")
+  plt.show()
+  #plt.close()
+
+  plt.figure(6)
+  plt.title('node requests for all jobs that ran')
+  plt.xlabel('node count requests (%)')
+  plt.ylabel('normalized count')
+  plt.hist(nodes_for_jobs,bins=20, normed=True)
+  plt.savefig("jobschedulersim_fig6_node_requests.png")
+  plt.show()
+  #plt.close()
+
+
 # done with function definitions
 #*****************************
 # parameter definitions
 
 number_of_jobs_to_run=500
 number_of_jobs_to_add_to_pool=100 # steady-state level
+power_cap=0.85 # this is the cap for the total cluster in percentage of potential capacity.
 # node count [1]
 total_number_of_nodes=1000
 nodes_per_job_mean=300 # integer
@@ -379,13 +462,13 @@ job_pool=[]
 add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,start_job_ID)
 
 # what's fascinating is that although the cluster runs at 100% node usage, the power usage rarely exceeds 90%. Thus this simple model captures the essential features!
-#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes)
+#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
 # or 
 # as long as power per node for a given job is less than 1, "nodes and power" will be same as "nodes" alone.
-[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes)
+[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
 # or 
 # by power alone fails because nodes are oversubscribed.
-#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes)
+#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
 
 save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_which_ran)
 
@@ -395,64 +478,5 @@ save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_w
 # datfil=load("schedule_nodes_power_used.dat");
 # figure; plot(datfil(:,1),datfil(:,2));
 
-plt.figure(1)
-plt.title('node utilization as function of time')
-plt.xlabel('time [AU]')
-plt.ylabel('nodes in use (%)')
-# plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='--')  
-plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='None')  
-plt.savefig("jobschedulersim_fig1_node_utilization_vs_time.png")
-plt.show()
-#plt.close()
+make_plots(node_tracking,power_tracking)
 
-plt.figure(2)
-plt.title('node utilization histogram')
-plt.xlabel('nodes in use (%)')
-plt.ylabel('normalized count')
-plt.hist(node_tracking,bins=20, normed=True)
-#plt.hist(node_tracking, bins=20, normed=True, cumulative=True)
-plt.savefig("jobschedulersim_fig2_node_utilization_histogram.png")
-plt.show()
-#plt.close()
-
-plt.figure(3)
-plt.title('power utilization as function of time')
-plt.xlabel('time [AU]')
-plt.ylabel('power in use (%)')
-plt.plot(range(len(power_tracking)),power_tracking,marker='o',markersize=4,linestyle='None')  
-plt.savefig("jobschedulersim_fig3_power_utilization_vs_time.png")
-plt.show()
-#plt.close()
-
-plt.figure(4)
-plt.title('power utilization histogram')
-plt.xlabel('power in use (%)')
-plt.ylabel('normalized count')
-plt.hist(power_tracking,bins=20, normed=True)
-plt.savefig("jobschedulersim_fig4_power_utilization_histogram.png")
-plt.show()
-#plt.close()
-
-power_for_jobs=[]
-nodes_for_jobs=[]
-for job_indx in range(len(jobs_which_ran)):
-  nodes_for_jobs.append(jobs_which_ran[job_indx][1])
-  power_for_jobs.append(jobs_which_ran[job_indx][3])
-
-plt.figure(5)
-plt.title('power requests for all jobs that ran')
-plt.xlabel('power requests (%)')
-plt.ylabel('normalized count')
-plt.hist(power_for_jobs,bins=20, normed=True)
-plt.savefig("jobschedulersim_fig5_power_requests.png")
-plt.show()
-#plt.close()
-
-plt.figure(6)
-plt.title('node requests for all jobs that ran')
-plt.xlabel('node count requests (%)')
-plt.ylabel('normalized count')
-plt.hist(nodes_for_jobs,bins=20, normed=True)
-plt.savefig("jobschedulersim_fig6_node_requests.png")
-plt.show()
-#plt.close()
