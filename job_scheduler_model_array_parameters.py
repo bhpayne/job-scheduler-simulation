@@ -35,8 +35,8 @@
 # package dependencies
 import random # used for distributions
 #import math 
-import matplotlib.pyplot as plt
-import yaml
+import matplotlib.pyplot as plt # for generating plots # http://matplotlib.org/
+import yaml # for reading parameters from file # http://pyyaml.org/wiki/PyYAML
 
 #*****************************
 def add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,start_job_ID):
