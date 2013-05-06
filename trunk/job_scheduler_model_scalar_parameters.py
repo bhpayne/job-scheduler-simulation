@@ -13,6 +13,7 @@
 # At each time step, the jobs in jobs_running have their time decremented by 1. If the time reaches zero, the job is removed from jobs_running
 # The output of the simulation is the number of nodes in use and total power in use at each time step. From these records the histogram of node and power usage can be created.
 # The schedulers used are not "fair" and do not account for node locality. 
+# Dynamic frequency scaling (of the entire cluster here) can be accomplished by increasing the runtime of jobs and correspondingly decreasing the power.
 
 # Assumptions: 
 # -homogeneous cluster = all nodes are interchangeable for run time and power usage. (Unrealistic.)
@@ -20,8 +21,9 @@
 # -topology is irrelevant to job run time. (Unrealistic.)
 # -no node fails. Either the entire cluster is available or not. (Restarting the cluster can be modeled.) (Unrealistic.)
 # -job power is uniform across all nodes. (Unrealistic.)
-# -power per node is normalized to 1
-# -time is normalized to 1
+# -power per node is normalized to 1. Power can be between a lower threshold and 1.
+# -time is normalized to 1. Time steps in increments of 1.
+# -nodes are allocated in increments of 1, minimum 1, maximum = number of nodes in the cluster.
 # -there are no "background" jobs available -- a job which will consume otherwise idle nodes when none of the jobs in the pool queue fit free nodes. See note in record_node_and_power_use()
 
 # caveat: there are transient effects associated with t=0 (since all nodes are empty at that time). 
@@ -319,7 +321,8 @@ def decrement_time_for_running_jobs(jobs_running,number_of_jobs_completed,
 # print("looking for jobs that finished")
   jobs_continuing=[]
   for running_job_indx in range(len(jobs_running)):
-    jobs_running[running_job_indx][2]=jobs_running[running_job_indx][2]-1
+    time_decrement = 1 # if dynamic frequency scaling of the entire cluster is in effect, replace "1" with something less than 1 (since slower jobs take longer to run).
+    jobs_running[running_job_indx][2]=jobs_running[running_job_indx][2]-time_decrement
     if (jobs_running[running_job_indx][2]>0):
       jobs_continuing.append(jobs_running[running_job_indx])
     else:

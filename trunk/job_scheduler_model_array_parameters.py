@@ -7,21 +7,23 @@
 
 # Description:
 # There are two main arrays, "job_pool" and "jobs_running"
-# Initially job_pool is populated with a list of jobs. Each job has four parameters: unique job ID, number of nodes, time to run, and power per node.
-# The distributions for each of these parameters are determined by the user. The user also sets how many total jobs to run through the cluster, total number of nodes in the cluster, and a power cap.
+# Initially job_pool is populated with a list of jobs. Each job has four parameters: unique job ID, number of nodes, time to run, and power per node. In this version the power usage is time and node resolved, necessitating an array of arrays: [jobID, [node1 power @ time1, node1 power @ time2, ...],[node2 power @ time1, node2 power @ time2,...],...].
+# The distributions for each of these parameters (number of nodes, time, power(time,node index) are determined by the user. The user also sets how many total jobs to run through the cluster, total number of nodes in the cluster, and a power cap.
 # Time is then incremented from 0. At each time step, the scheduler determines whether there are nodes (and possibly power) available. If there is, move a job from the job_pool to jobs_running.
 # At each time step, the jobs in jobs_running have their time decremented by 1. If the time reaches zero, the job is removed from jobs_running
 # The output of the simulation is the number of nodes in use and total power in use at each time step. From these records the histogram of node and power usage can be created.
 # The schedulers used are not "fair" and do not account for node locality. 
+# Dynamic frequency scaling (of the entire cluster here) can be accomplished by increasing the runtime of jobs and correspondingly decreasing the power.
 
 # Assumptions: 
 # -homogeneous cluster = all nodes are interchangeable for run time and power usage. (Unrealistic.)
 # -locality doesn't matter. (Unrealistic.)
 # -topology is irrelevant to job run time. (Unrealistic.)
 # -no node fails. Either the entire cluster is available or not. (Restarting the cluster can be modeled.) (Unrealistic.)
-# -job power is uniform across all nodes. (Unrealistic.)
-# -power per node is normalized to 1
-# -time is normalized to 1
+# -job power obeys a probability distribution for nodes rather than being correlated in space and time. (Unrealistic.)
+# -power per node is normalized to 1. Power can be between a lower threshold and 1.
+# -time is normalized to 1. Time steps in increments of 1.
+# -nodes are allocated in increments of 1, minimum 1, maximum = number of nodes in the cluster.
 # -there are no "background" jobs available -- a job which will consume otherwise idle nodes when none of the jobs in the pool queue fit free nodes. See note in record_node_and_power_use()
 
 # caveat: there are transient effects associated with t=0 (since all nodes are empty at that time). 
@@ -45,12 +47,13 @@ def add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_
     #
     this_job.append(job_indx)
     # node count
+    # http://docs.python.org/2/library/random.html#random.gauss
     nodes_for_this_job=int(random.gauss(nodes_per_job_mean,nodes_per_job_stddev))
     if (nodes_for_this_job>total_number_of_nodes):
       nodes_for_this_job=total_number_of_nodes
     if (nodes_for_this_job<1):
       nodes_for_this_job=1
-    this_job.append(nodes_for_this_job)
+#     this_job.append(nodes_for_this_job)
     #
     # time
     this_job_wall_time=int(random.gauss(wall_time_mean,wall_time_stddev))
@@ -58,18 +61,29 @@ def add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_
       this_job_wall_time=max_job_time
     if (this_job_wall_time<1):
       this_job_wall_time=1
-    this_job.append(this_job_wall_time)
+#     this_job.append(this_job_wall_time)
     #
     # power
-    this_job_power_usage=random.gauss(power_usage_mean,power_usage_stddev)
-    # http://docs.python.org/2/library/random.html#random.gauss
-    if (this_job_power_usage>1):
-      this_job_power_usage=1
-    if (this_job_power_usage<power_usage_minimum):
-      this_job_power_usage=power_usage_minimum
-    this_job.append(this_job_power_usage)
+    power_node_time=[]
+    for time_step in range(this_job_wall_time):
+      this_time_ary=[]
+      for node_index in range(nodes_for_this_job):
+        this_nodetime_power_usage=random.gauss(power_usage_mean,power_usage_stddev)
+        if (this_nodetime_power_usage>1):
+          this_nodetime_power_usage=1
+        if (this_nodetime_power_usage<power_usage_minimum):
+          this_nodetime_power_usage=power_usage_minimum
+        this_time_ary.append(this_nodetime_power_usage)
+      power_node_time.append(this_time_ary)  
+    this_job.append(power_node_time)
     #
     job_pool.append(this_job)  
+    
+    # summary of job_pool contents:
+#     job_ID = job_pool[job_ID][0]
+#     number of time steps for this job = len(job_pool[job_ID][1])
+#     number of nodes for this job      = len(job_pool[job_ID][1][0])
+#     power usage for job_ID of node n at time t = job_pool[job_ID][1][t][n]
 
 #*****************************
 # "nodes available" scheduling simulation. Process a finite set of jobs from the job pool
@@ -100,9 +114,9 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
     number_of_available_jobs=len(job_pool)
     for job_indx in range(number_of_available_jobs): # find jobs in the pool to fit into the cluster
       job_id              =job_pool[job_indx][0]
-      nodes_for_this_job  =job_pool[job_indx][1]
-     #this_job_wall_time  =job_pool[job_indx][2]
-     #this_job_power_usage=job_pool[job_indx][3]
+      nodes_for_this_job  =len(job_pool[job_ID][1][0])
+     #this_job_wall_time  =len(job_pool[job_ID][1])
+     
       job_is_running=False
       if (nodes_for_this_job<=nodes_available and not job_is_running ): # then run the job
         nodes_in_use=nodes_in_use+nodes_for_this_job
@@ -116,7 +130,7 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
 #     print("nodes remaining: "+str(nodes_available))
     # now that we have a set of running jobs, remove those from the list of jobs to be run    
     for running_job_indx in range(len(jobs_running)):
-      print("  running job = "+str(jobs_running[running_job_indx]))
+#       print("  running job = "+str(jobs_running[running_job_indx]))
       try: job_pool.remove(jobs_running[running_job_indx])
       except ValueError: pass # this job had already been removed from the job pool
 
@@ -136,7 +150,7 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
     # update the number of nodes in use
     nodes_in_use=0
     for running_job_indx in range(len(jobs_running)):
-      nodes_in_use=nodes_in_use+jobs_running[running_job_indx][1]
+      nodes_in_use=nodes_in_use+jobs_running[running_job_indx][1] # 20130506 may need to be corrected for power array
     time_step=time_step+1  
     print("\ntime="+str(time_step))  
     
@@ -319,7 +333,8 @@ def decrement_time_for_running_jobs(jobs_running,number_of_jobs_completed,
 # print("looking for jobs that finished")
   jobs_continuing=[]
   for running_job_indx in range(len(jobs_running)):
-    jobs_running[running_job_indx][2]=jobs_running[running_job_indx][2]-1
+    time_decrement = 1 # if dynamic frequency scaling of the entire cluster is in effect, replace "1" with something less than 1 (since slower jobs take longer to run).
+    jobs_running[running_job_indx][2]=jobs_running[running_job_indx][2]-time_decrement
     if (jobs_running[running_job_indx][2]>0):
       jobs_continuing.append(jobs_running[running_job_indx])
     else:
@@ -470,10 +485,10 @@ job_pool=[]
 add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,start_job_ID)
 
 # what's fascinating is that although the cluster runs at 100% node usage, the power usage rarely exceeds 90%. Thus this simple model captures the essential features!
-#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
+[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
 # or 
 # as long as power per node for a given job is less than 1, "nodes and power" will be same as "nodes" alone.
-[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
+#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
 # or 
 # by power alone fails because nodes are oversubscribed.
 #[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
