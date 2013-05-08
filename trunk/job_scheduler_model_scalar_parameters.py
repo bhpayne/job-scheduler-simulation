@@ -13,7 +13,7 @@
 # At each time step, the jobs in jobs_running have their time decremented by 1. If the time reaches zero, the job is removed from jobs_running
 # The output of the simulation is the number of nodes in use and total power in use at each time step. From these records the histogram of node and power usage can be created.
 # The schedulers used are not "fair" and do not account for node locality. 
-# Dynamic frequency scaling (of the entire cluster here) can be accomplished by increasing the runtime of jobs and correspondingly decreasing the power.
+# Dynamic frequency scaling (of either the entire cluster or per job here) can be accomplished by increasing the runtime of jobs and correspondingly decreasing the power. 
 
 # Assumptions: 
 # -homogeneous cluster = all nodes are interchangeable for run time and power usage. (Unrealistic.)
@@ -229,7 +229,9 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
     nodes_in_use=0
     power_in_use=0
     for running_job_indx in range(len(jobs_running)):
+                                # nodes for this job
       nodes_in_use=nodes_in_use+jobs_running[running_job_indx][1]
+                                # power for each node of this job scaled by the number of nodes (normalized by total)
       power_in_use=power_in_use+jobs_running[running_job_indx][3]*(nodes_for_this_job/total_number_of_nodes)
     
     time_step=time_step+1  
@@ -302,6 +304,7 @@ def scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
     # update the number of nodes in use
     power_in_use=0
     for running_job_indx in range(len(jobs_running)):
+                                # power for each node of this job scaled by the number of nodes
       power_in_use=power_in_use+jobs_running[running_job_indx][3]*(nodes_for_this_job/total_number_of_nodes)
     
     time_step=time_step+1  
@@ -321,7 +324,12 @@ def decrement_time_for_running_jobs(jobs_running,number_of_jobs_completed,
 # print("looking for jobs that finished")
   jobs_continuing=[]
   for running_job_indx in range(len(jobs_running)):
-    time_decrement = 1 # if dynamic frequency scaling of the entire cluster is in effect, replace "1" with something less than 1 (since slower jobs take longer to run).
+    scale_entire_cluster=True
+    scale_this_job=True
+    if (scale_entire_cluster or scale_this_job):
+      time_decrement = 0.5 # or some other value between 0 and 1
+    else: # don't skew the time
+      time_decrement = 1 # if dynamic frequency scaling of the entire cluster is in effect, replace "1" with something less than 1 (since slower jobs take longer to run).
     jobs_running[running_job_indx][2]=jobs_running[running_job_indx][2]-time_decrement
     if (jobs_running[running_job_indx][2]>0):
       jobs_continuing.append(jobs_running[running_job_indx])
@@ -343,7 +351,15 @@ def record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,
   concurrency_tracking.append(len(jobs_running))
   for running_job_indx in range(len(jobs_running)):
     node_tracking_at_this_time =node_tracking_at_this_time +jobs_running[running_job_indx][1]
-    power_tracking_at_this_time=power_tracking_at_this_time+jobs_running[running_job_indx][3]*jobs_running[running_job_indx][1]
+    # power (which may be skewed due to dynamic frequency scaling    
+    scale_entire_cluster=True
+    scale_this_job=True
+    if (scale_entire_cluster or scale_this_job):
+      power_scaling = 0.5 # use less power. Value should be between 1 and idle power
+    else:
+      power_scaling = 1 # no frequency scaling in use
+                                                          # power for each node of this job  # number of nodes for this job
+    power_tracking_at_this_time=power_tracking_at_this_time+jobs_running[running_job_indx][3]*jobs_running[running_job_indx][1]*power_scaling
   # in addition to the power being used by nodes running jobs, the idle nodes also consume power. 
   nodes_idle = total_number_of_nodes-node_tracking_at_this_time # How many of the nodes are idle?
   # Note: if, instead of idle nodes, there should be a "background" type job which runs, then replace "power_usage_minimum" with the power used by the background job.
