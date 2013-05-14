@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Ben Payne
-# last updated 20130501
+# last updated 20130509
 # created 20130426
 # job scheduling model
 # accounts for job time, node count, and power usage
@@ -39,6 +39,8 @@ import random # used for distributions
 #import math 
 import matplotlib.pyplot as plt # for generating plots # http://matplotlib.org/
 import yaml # for reading parameters from file # http://pyyaml.org/wiki/PyYAML
+import pickle # serialize data output
+# import cPickle as pickle # "upto 1000 times faster because it is in C"
 
 #*****************************
 def add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,start_job_ID):
@@ -81,9 +83,9 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
   number_of_jobs_completed=0
   job_ID_increment=number_of_jobs_to_add_to_pool
 
-  node_tracking=[]
-  power_tracking=[]
-  concurrency_tracking=[]
+  number_of_nodes_running_time_resolved=[]
+  power_used_time_resolved=[]
+  number_of_jobs_running_time_resolved=[]
 
   jobs_running=[]
   jobs_which_ran=[]
@@ -130,7 +132,7 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
     [jobs_running,number_of_jobs_completed,job_ID_increment] = decrement_time_for_running_jobs(jobs_running,number_of_jobs_completed,number_of_jobs_to_run,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,job_ID_increment)
     
 #    print("after job finished")  
-    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes,power_usage_minimum)
+    [number_of_nodes_running_time_resolved,power_used_time_resolved,number_of_jobs_running_time_resolved]=record_node_and_power_use(number_of_nodes_running_time_resolved,power_used_time_resolved,number_of_jobs_running_time_resolved,jobs_running,total_number_of_nodes,power_usage_minimum)
 
 #    for pool_job_indx in range(len(job_pool)):
 #      print("  job in pool: "+str(job_pool[pool_job_indx]))
@@ -144,7 +146,7 @@ def scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
     
     print("running: "+str(len(jobs_running))+" in pool: "+str(len(job_pool))+" ran: "+str(number_of_jobs_completed))
 
-  return node_tracking, power_tracking, concurrency_tracking, jobs_which_ran
+  return number_of_nodes_running_time_resolved, power_used_time_resolved, number_of_jobs_running_time_resolved, jobs_which_ran
 
 
 #*****************************
@@ -157,9 +159,9 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
   number_of_jobs_completed=0
   job_ID_increment=number_of_jobs_to_add_to_pool
 
-  node_tracking=[]
-  power_tracking=[]
-  concurrency_tracking=[]
+  number_of_nodes_running_time_resolved=[]
+  power_used_time_resolved=[]
+  number_of_jobs_running_time_resolved=[]
 
   jobs_running=[]
   jobs_which_ran=[]  
@@ -220,7 +222,7 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
                                              power_usage_minimum,job_pool,job_ID_increment)
 
  #    print("after job finished")  
-    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes,power_usage_minimum)
+    [number_of_nodes_running_time_resolved,power_used_time_resolved,number_of_jobs_running_time_resolved]=record_node_and_power_use(number_of_nodes_running_time_resolved,power_used_time_resolved,number_of_jobs_running_time_resolved,jobs_running,total_number_of_nodes,power_usage_minimum)
 
 #    for pool_job_indx in range(len(job_pool)):
 #      print("  job in pool: "+str(job_pool[pool_job_indx]))
@@ -239,7 +241,7 @@ def scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_
     
     print("running: "+str(len(jobs_running))+" in pool: "+str(len(job_pool))+" ran: "+str(number_of_jobs_completed))
 
-  return node_tracking, power_tracking, concurrency_tracking, jobs_which_ran
+  return number_of_nodes_running_time_resolved, power_used_time_resolved, number_of_jobs_running_time_resolved, jobs_which_ran
 
 #*****************************
 # "power available" scheduling simulation. Process a finite set of jobs from the job pool
@@ -250,9 +252,9 @@ def scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
   number_of_jobs_completed=0
   job_ID_increment=number_of_jobs_to_add_to_pool
 
-  node_tracking=[]
-  power_tracking=[]
-  concurrency_tracking=[]
+  number_of_nodes_running_time_resolved=[]
+  power_used_time_resolved=[]
+  number_of_jobs_running_time_resolved=[]
 
   jobs_running=[]
   jobs_which_ran=[]  
@@ -299,7 +301,7 @@ def scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
                                              power_usage_minimum,job_pool,job_ID_increment)
 
  #    print("after job finished")  
-    [node_tracking,power_tracking,concurrency_tracking]=record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes,power_usage_minimum)
+    [number_of_nodes_running_time_resolved,power_used_time_resolved,number_of_jobs_running_time_resolved]=record_node_and_power_use(number_of_nodes_running_time_resolved,power_used_time_resolved,number_of_jobs_running_time_resolved,jobs_running,total_number_of_nodes,power_usage_minimum)
 
     # update the number of nodes in use
     power_in_use=0
@@ -312,7 +314,7 @@ def scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_ru
     
     print("running: "+str(len(jobs_running))+" in pool: "+str(len(job_pool))+" ran: "+str(number_of_jobs_completed))
 
-  return node_tracking, power_tracking, concurrency_tracking, jobs_which_ran
+  return number_of_nodes_running_time_resolved, power_used_time_resolved, number_of_jobs_running_time_resolved, jobs_which_ran
 
 #*****************************
 # used by all schedulers
@@ -345,12 +347,12 @@ def decrement_time_for_running_jobs(jobs_running,number_of_jobs_completed,
 
 #*****************************
 # used by all schedulers
-def record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,jobs_running,total_number_of_nodes,power_usage_minimum):
-  node_tracking_at_this_time=0
-  power_tracking_at_this_time=0
-  concurrency_tracking.append(len(jobs_running))
+def record_node_and_power_use(number_of_nodes_running_time_resolved,power_used_time_resolved,number_of_jobs_running_time_resolved,jobs_running,total_number_of_nodes,power_usage_minimum):
+  number_of_nodes_running_time_resolved_at_this_time=0
+  power_used_time_resolved_at_this_time=0
+  number_of_jobs_running_time_resolved.append(len(jobs_running))
   for running_job_indx in range(len(jobs_running)):
-    node_tracking_at_this_time =node_tracking_at_this_time +jobs_running[running_job_indx][1]
+    number_of_nodes_running_time_resolved_at_this_time =number_of_nodes_running_time_resolved_at_this_time +jobs_running[running_job_indx][1]
     # power (which may be skewed due to dynamic frequency scaling    
     scale_entire_cluster=True
     scale_this_job=True
@@ -359,43 +361,54 @@ def record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,
     else:
       power_scaling = 1 # no frequency scaling in use
                                                           # power for each node of this job  # number of nodes for this job
-    power_tracking_at_this_time=power_tracking_at_this_time+jobs_running[running_job_indx][3]*jobs_running[running_job_indx][1]*power_scaling
+    power_used_time_resolved_at_this_time=power_used_time_resolved_at_this_time+jobs_running[running_job_indx][3]*jobs_running[running_job_indx][1]*power_scaling
   # in addition to the power being used by nodes running jobs, the idle nodes also consume power. 
-  nodes_idle = total_number_of_nodes-node_tracking_at_this_time # How many of the nodes are idle?
+  nodes_idle = total_number_of_nodes-number_of_nodes_running_time_resolved_at_this_time # How many of the nodes are idle?
   # Note: if, instead of idle nodes, there should be a "background" type job which runs, then replace "power_usage_minimum" with the power used by the background job.
   power_idle = nodes_idle*power_usage_minimum # total power being spent on idle nodes
-  power_tracking_at_this_time = power_tracking_at_this_time+power_idle # add the "idle powered nodes" to the total power
+  power_used_time_resolved_at_this_time = power_used_time_resolved_at_this_time+power_idle # add the "idle powered nodes" to the total power
 
-  nodes_used_percentage = (node_tracking_at_this_time/(total_number_of_nodes*1.0))*100
+  nodes_used_percentage = (number_of_nodes_running_time_resolved_at_this_time/(total_number_of_nodes*1.0))*100
   if (nodes_used_percentage>100):
     print("ERROR in nodes used percentage: "+str(nodes_used_percentage))
     exit()
-  node_tracking.append(nodes_used_percentage)
+  number_of_nodes_running_time_resolved.append(nodes_used_percentage)
 
-  power_used_percentage = (power_tracking_at_this_time/total_number_of_nodes)*100
+  power_used_percentage = (power_used_time_resolved_at_this_time/total_number_of_nodes)*100
   if (power_used_percentage>100):
     print("ERROR in power used percentage: "+str(nodes_used_percentage))
     exit()
-  power_tracking.append(power_used_percentage)
+  power_used_time_resolved.append(power_used_percentage)
 
-  return node_tracking,power_tracking,concurrency_tracking
+  return number_of_nodes_running_time_resolved,power_used_time_resolved,number_of_jobs_running_time_resolved
 
 #*****************************
-def save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_which_ran):
-  f = open('schedule_nodes_power_used.dat','w')
-  for lin in range(len(node_tracking)):
-    f.write(str(lin)+"  "+str(node_tracking[lin])+"  "+str(lin)+"  "+str(power_tracking[lin])+"  "+str(lin)+"  "+str(concurrency_tracking[lin])+"\n")
+def save_results_to_file(number_of_nodes_running_time_resolved, power_used_time_resolved, number_of_jobs_running_time_resolved, jobs_which_ran):
+  f = open('schedule_nodes__power_used_time_resolved.dat','w')
+  for time_step in range(len(number_of_nodes_running_time_resolved)):
+    f.write(str(time_step)+", "+str(number_of_nodes_running_time_resolved[time_step])+", "+str(power_used_time_resolved[time_step])+", "+str(number_of_jobs_running_time_resolved[time_step])+"\n")
   f.close()  
-#   print("jobs which ran: \n"+str(jobs_which_ran))
+  
+  output=open('schedule_nodes__power_used_time_resolved.pkl','wb')
+  pickle.dump(number_of_nodes_running_time_resolved,output)
+  pickle.dump(power_used_time_resolved,output)
+  pickle.dump(number_of_jobs_running_time_resolved,output)
+  output.close()
+
+#   pkl_file=open('schedule_nodes__power_used_time_resolved.pkl','rb') # read
+#   number_of_nodes_running_time_resolved=pickle.load(pkl_file)
+#   power_used_time_resolved=pickle.load(pkl_file)
+#   number_of_jobs_running_time_resolved=pickle.load(pkl_file)
+#   pkl_file.close()
 
 #*****************************
-def make_plots(node_tracking,power_tracking):
+def make_plots(number_of_nodes_running_time_resolved,power_used_time_resolved):
   plt.figure(1)
   plt.title('node utilization as function of time')
   plt.xlabel('time [AU]')
   plt.ylabel('nodes in use (%)')
-  # plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='--')  
-  plt.plot(range(len(node_tracking)),node_tracking,marker='o',markersize=4,linestyle='None')  
+  # plt.plot(range(len(number_of_nodes_running_time_resolved)),number_of_nodes_running_time_resolved,marker='o',markersize=4,linestyle='--')  
+  plt.plot(range(len(number_of_nodes_running_time_resolved)),number_of_nodes_running_time_resolved,marker='o',markersize=4,linestyle='None')  
   plt.savefig("jobschedulersim_fig1_node_utilization_vs_time.png")
   plt.show()
   #plt.close()
@@ -404,8 +417,8 @@ def make_plots(node_tracking,power_tracking):
   plt.title('node utilization histogram')
   plt.xlabel('nodes in use (%)')
   plt.ylabel('normalized count')
-  plt.hist(node_tracking,bins=20, normed=True)
-  #plt.hist(node_tracking, bins=20, normed=True, cumulative=True)
+  plt.hist(number_of_nodes_running_time_resolved,bins=20, normed=True)
+  #plt.hist(number_of_nodes_running_time_resolved, bins=20, normed=True, cumulative=True)
   plt.savefig("jobschedulersim_fig2_node_utilization_histogram.png")
   plt.show()
   #plt.close()
@@ -414,7 +427,7 @@ def make_plots(node_tracking,power_tracking):
   plt.title('power utilization as function of time')
   plt.xlabel('time [AU]')
   plt.ylabel('power in use (%)')
-  plt.plot(range(len(power_tracking)),power_tracking,marker='o',markersize=4,linestyle='None')  
+  plt.plot(range(len(power_used_time_resolved)),power_used_time_resolved,marker='o',markersize=4,linestyle='None')  
   plt.savefig("jobschedulersim_fig3_power_utilization_vs_time.png")
   plt.show()
   #plt.close()
@@ -423,7 +436,7 @@ def make_plots(node_tracking,power_tracking):
   plt.title('power utilization histogram')
   plt.xlabel('power in use (%)')
   plt.ylabel('normalized count')
-  plt.hist(power_tracking,bins=20, normed=True)
+  plt.hist(power_used_time_resolved,bins=20, normed=True)
   plt.savefig("jobschedulersim_fig4_power_utilization_histogram.png")
   plt.show()
   #plt.close()
@@ -489,15 +502,15 @@ job_pool=[]
 add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,start_job_ID)
 
 # what's fascinating is that although the cluster runs at 100% node usage, the power usage rarely exceeds 90%. Thus this simple model captures the essential features!
-#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
+#[number_of_nodes_running_time_resolved, power_used_time_resolved, number_of_jobs_running_time_resolved, jobs_which_ran] = scheduler_nodes_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
 # or 
 # as long as power per node for a given job is less than 1, "nodes and power" will be same as "nodes" alone.
-[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
+[number_of_nodes_running_time_resolved, power_used_time_resolved, number_of_jobs_running_time_resolved, jobs_which_ran] = scheduler_nodes_and_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
 # or 
 # by power alone fails because nodes are oversubscribed.
-#[node_tracking, power_tracking, concurrency_tracking, jobs_which_ran] = scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
+#[number_of_nodes_running_time_resolved, power_used_time_resolved, number_of_jobs_running_time_resolved, jobs_which_ran] = scheduler_power_available(number_of_jobs_to_add_to_pool,number_of_jobs_to_run,total_number_of_nodes,power_cap)
 
-save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_which_ran)
+save_results_to_file(number_of_nodes_running_time_resolved, power_used_time_resolved, number_of_jobs_running_time_resolved, jobs_which_ran)
 
 # we care about the histogram of power usage, trimming the first and last parts to remove bias
 
@@ -505,5 +518,5 @@ save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_w
 # datfil=load("schedule_nodes_power_used.dat");
 # figure; plot(datfil(:,1),datfil(:,2));
 
-make_plots(node_tracking,power_tracking)
+make_plots(number_of_nodes_running_time_resolved,power_used_time_resolved)
 
