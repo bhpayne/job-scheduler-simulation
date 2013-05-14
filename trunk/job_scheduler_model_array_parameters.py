@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # Ben Payne
-# last updated 20130501
+# last updated 20130509
 # created 20130426
 # job scheduling model
 # accounts for job time, node count, and power usage
@@ -386,11 +386,22 @@ def record_node_and_power_use(node_tracking,power_tracking,concurrency_tracking,
 
 #*****************************
 def save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jobs_which_ran):
-  f = open('schedule_nodes_power_used.dat','w')
-  for lin in range(len(node_tracking)):
-    f.write(str(lin)+"  "+str(node_tracking[lin])+"  "+str(lin)+"  "+str(power_tracking[lin])+"  "+str(lin)+"  "+str(concurrency_tracking[lin])+"\n")
+  f = open('schedule_nodes__power_used_time_resolved.dat','w')
+  for time_step in range(len(node_tracking)):
+    f.write(str(time_step)+"  "+str(node_tracking[time_step])+"  "+str(time_step)+"  "+str(power_tracking[time_step])+"  "+str(time_step)+"  "+str(concurrency_tracking[time_step])+"\n")
   f.close()  
-#   print("jobs which ran: \n"+str(jobs_which_ran))
+
+  output=open('schedule_nodes__power_used_time_resolved.pkl','wb')
+  pickle.dump(number_of_nodes_running_time_resolved,output)
+  pickle.dump(power_used_time_resolved,output)
+  pickle.dump(number_of_jobs_running_time_resolved,output)
+  output.close()
+
+#   pkl_file=open('schedule_nodes__power_used_time_resolved.pkl','rb') # read
+#   number_of_nodes_running_time_resolved=pickle.load(pkl_file)
+#   power_used_time_resolved=pickle.load(pkl_file)
+#   number_of_jobs_running_time_resolved=pickle.load(pkl_file)
+#   pkl_file.close()
 
 #*****************************
 def make_plots(node_tracking,power_tracking):
