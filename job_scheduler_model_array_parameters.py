@@ -394,9 +394,10 @@ def save_results_to_file(node_tracking, power_tracking, concurrency_tracking, jo
   f.close()  
 
   output=open('schedule_nodes__power_used_time_resolved.pkl','wb')
-  pickle.dump(number_of_nodes_running_time_resolved,output)
-  pickle.dump(power_used_time_resolved,output)
-  pickle.dump(number_of_jobs_running_time_resolved,output)
+  pickle.dump(node_tracking,output)
+  pickle.dump(power_tracking,output)
+  pickle.dump(concurrency_tracking,output)
+  pickle.dump(jobs_which_ran,output)
   output.close()
 
 #   pkl_file=open('schedule_nodes__power_used_time_resolved.pkl','rb') # read
@@ -452,10 +453,10 @@ def make_plots(node_tracking,power_tracking):
 
   power_for_jobs=[]
   nodes_for_jobs=[]
-  for job_indx in range(len(jobs_which_ran)):
-    nodes_for_jobs.append(len(jobs_which_ran[job_indx][1][0]))
-    times_for_jobs.append(len(jobs_which_ran[job_indx][1]))
-#    power_for_jobs.append(jobs_which_ran[job_indx][?])
+#   for job_indx in range(len(jobs_which_ran)):
+#     nodes_for_jobs.append(len(jobs_which_ran[job_indx][1][0]))
+#     times_for_jobs.append(len(jobs_which_ran[job_indx][1]))
+    #power_for_jobs.append(jobs_which_ran[job_indx][?])
 
 #   plt.figure(5)
 #   plt.title('power requests for all jobs that ran')
@@ -466,23 +467,23 @@ def make_plots(node_tracking,power_tracking):
 #   plt.show()
 #   #plt.close()
 
-  plt.figure(6)
-  plt.title('node requests for all jobs that ran')
-  plt.xlabel('node count requests (%)')
-  plt.ylabel('normalized count')
-  plt.hist(nodes_for_jobs,bins=20, normed=True)
-  plt.savefig("jobschedulersim_fig6_node_requests.png")
-  plt.show()
-  #plt.close()
-
-  plt.figure(7)
-  plt.title('time requests for all jobs that ran')
-  plt.xlabel('time requests')
-  plt.ylabel('normalized count')
-  plt.hist(times_for_jobs,bins=20, normed=True)
-  plt.savefig("jobschedulersim_fig7_time_requests.png")
-  plt.show()
-  #plt.close()
+#   plt.figure(6)
+#   plt.title('node requests for all jobs that ran')
+#   plt.xlabel('node count requests (%)')
+#   plt.ylabel('normalized count')
+#   plt.hist(nodes_for_jobs,bins=20, normed=True)
+#   plt.savefig("jobschedulersim_fig6_node_requests.png")
+#   plt.show()
+#   #plt.close()
+# 
+#   plt.figure(7)
+#   plt.title('time requests for all jobs that ran')
+#   plt.xlabel('time requests')
+#   plt.ylabel('normalized count')
+#   plt.hist(times_for_jobs,bins=20, normed=True)
+#   plt.savefig("jobschedulersim_fig7_time_requests.png")
+#   plt.show()
+#   #plt.close()
 
 
 # done with function definitions
