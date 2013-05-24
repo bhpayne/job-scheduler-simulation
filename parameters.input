@@ -1,4 +1,4 @@
-number_of_jobs_to_run: 1000
+number_of_jobs_to_run: 100
 number_of_jobs_to_add_to_pool: 20 # steady-state level
 power_cap: 0.85 # this is the cap for the total cluster in percentage of potential capacity.
 
