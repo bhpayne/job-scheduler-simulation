@@ -2,21 +2,21 @@
 # Ben Payne
 # last updated 20130509
 # created 20130426
-# job scheduling model
-# accounts for job time, node count, and power usage
+"""@package docstring
+job scheduling model. accounts for job time, node count, and power usage
 
-# Description:
-# There are two main arrays, "job_pool" and "jobs_running"
-# Initially job_pool is populated with a list of jobs. Each job has four parameters: unique job ID, number of nodes, time to run, and power per node.
-# The distributions for each of these parameters are determined by the user. The user also sets how many total jobs to run through the cluster, total number of nodes in the cluster, and a power cap.
+Description:
+There are two main arrays, "job_pool" and "jobs_running"
+Initially job_pool is populated with a list of jobs. Each job has four parameters: unique job ID, number of nodes, time to run, and power per node.
+## The distributions for each of these parameters are determined by the user. The user also sets how many total jobs to run through the cluster, total number of nodes in the cluster, and a power cap.
 # Time is then incremented from 0. At each time step, the scheduler determines whether there are nodes (and possibly power) available. If there is, move a job from the job_pool to jobs_running.
 # At each time step, the jobs in jobs_running have their time decremented by 1. If the time reaches zero, the job is removed from jobs_running
 # The output of the simulation is the number of nodes in use and total power in use at each time step. From these records the histogram of node and power usage can be created.
 # The schedulers used are not "fair" and do not account for node locality. 
 # Dynamic frequency scaling (of either the entire cluster or per job here) can be accomplished by increasing the runtime of jobs and correspondingly decreasing the power. 
 
-# Assumptions: 
-# -homogeneous cluster = all nodes are interchangeable for run time and power usage. (Unrealistic.)
+Assumptions: 
+-homogeneous cluster = all nodes are interchangeable for run time and power usage. (Unrealistic.)
 # -locality doesn't matter. (Unrealistic.)
 # -topology is irrelevant to job run time. (Unrealistic.)
 # -no node fails. Either the entire cluster is available or not. (Restarting the cluster can be modeled.) (Unrealistic.)
@@ -33,17 +33,22 @@
 
 # caveat: it's easy to get unrealistic results by altering the input distribution features. 
 # Therefore realistic input distributions are vital to making useful predictions.
-
+"""
 # package dependencies
 import random # used for distributions
 #import math 
 import matplotlib.pyplot as plt # for generating plots # http://matplotlib.org/
 import yaml # for reading parameters from file # http://pyyaml.org/wiki/PyYAML
 import pickle # serialize data output
+## more stuff
 # import cPickle as pickle # "upto 1000 times faster because it is in C"
 
 #*****************************
 def add_jobs_to_pool(number_of_jobs_to_add_to_pool,nodes_per_job_mean,nodes_per_job_stddev,total_number_of_nodes,wall_time_mean,wall_time_stddev,max_job_time,power_usage_mean,power_usage_stddev,power_usage_minimum,job_pool,start_job_ID):
+"""Documentation for a function.
+
+more details
+"""
   for job_indx in range(start_job_ID,start_job_ID+number_of_jobs_to_add_to_pool):
     this_job=[]
     #
@@ -470,7 +475,7 @@ def make_plots(number_of_nodes_running_time_resolved,power_used_time_resolved):
 #*****************************
 # parameter definitions
 
-input_stream=file('parameters.input','r')
+input_stream=file('parameters_0.input','r')
 input_data=yaml.load(input_stream)
 
 number_of_jobs_to_run=input_data["number_of_jobs_to_run"]
