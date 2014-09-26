@@ -490,7 +490,7 @@ def make_plots(node_tracking,power_tracking):
 #*****************************
 # parameter definitions
 
-input_stream=file('parameters.input','r')
+input_stream=file('parameters_0.input','r')
 input_data=yaml.load(input_stream)
 
 number_of_jobs_to_run=input_data["number_of_jobs_to_run"]
