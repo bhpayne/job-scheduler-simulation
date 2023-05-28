@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Ben Payne
-# last updated 20130510
-# created 20130509
+# last updated 2013-05-10
+# created 2013-05-09
 
 # summary: run multiple concurrent simulations of HPC systems. If there are multiple HPC systems in a data center, then the power profile of the data center depends on usage profile of each HPC system.
 # this simulation depends on "job_scheduler_model_scalar_parameters.py" which takes as an input "parameters.input"
@@ -15,8 +15,8 @@ import pickle # serialize data output
 # import cPickle as pickle # "upto 1000 times faster because it is in C"
 
 def read_parameters_input(file_name):
-  input_stream=file(file_name,'r')
-  input_data=yaml.load(input_stream)
+  with open(file_name,'r') as file_handle:
+    input_data=yaml.load(file_handle)
 
   number_of_jobs_to_run=input_data["number_of_jobs_to_run"]
   number_of_jobs_to_add_to_pool=input_data["number_of_jobs_to_add_to_pool"]
